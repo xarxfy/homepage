@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react"
-
 import { toast } from "sonner"
+import { Separator } from "~/components/ui/separator"
 
 export default function Network() {
-    const [speed, setSpeed] = useState<any>({})
-    const [speedHistory, setSpeedHistory] = useState<any[]>([])
-    const [health, setHealth] = useState<any>()
 
+    const [netInfo, setNetInfo] = useState<any[]>([])
+
+    const [health, setHealth] = useState<any>()
     const healthToastShown = useRef(false)
 
     useEffect(() => {
@@ -19,6 +19,7 @@ export default function Network() {
                         toast("API down")
                         healthToastShown.current = true
                     }
+
                     return false
                 }
 
@@ -26,11 +27,15 @@ export default function Network() {
                 setHealth(data)
 
                 if (data.status === "ok") {
+                    // Sobald die API wieder erreichbar ist,
+                    // darf beim nächsten Ausfall wieder ein Toast kommen
                     healthToastShown.current = false
+
                     return true
                 }
 
                 return false
+
             } catch (error) {
                 console.error("Health Check Error:", error)
 
@@ -43,32 +48,16 @@ export default function Network() {
             }
         }
 
-        async function getNetworkSpeed() {
+        async function getNetInfo() {
+            const res = await fetch("/api/v1/proxmox/nodes/pve/network")
             try {
-                const res = await fetch(
-                    "/api/v1/proxmox/nodes/pve/network/speed"
-                )
-
                 if (!res.ok) {
                     throw new Error(`HTTP ${res.status}`)
                 }
-
                 const data = await res.json()
-
-                // Aktuelle Geschwindigkeit
-                setSpeed(data)
-
-                // Verlauf
-                setSpeedHistory((prev) => [
-                    ...prev.slice(-59),
-                    {
-                        time: new Date().toLocaleTimeString(),
-                        netin: data.netin * 8 / 1_000_000,
-                        netout: data.netout * 8 / 1_000_000,
-                    },
-                ])
+                setNetInfo(data)
             } catch (error) {
-                console.error("Network Speed Error:", error)
+                console.error(error)
             }
         }
 
@@ -79,11 +68,16 @@ export default function Network() {
                 return
             }
 
-            await getNetworkSpeed()
+            await Promise.all([
+                getNetInfo()
+            ])
         }
 
+
+        // Sofort prüfen
         updateData()
 
+        // Danach alle 5 Sekunden prüfen
         const interval = setInterval(() => {
             updateData()
         }, 5000)
@@ -91,80 +85,50 @@ export default function Network() {
         return () => {
             clearInterval(interval)
         }
+
     }, [])
 
     return (
-        <div className="space-y-4">
-            <div>
-                <p>
-                    ↓ {speed.netin != null
-                        ? (speed.netin * 8 / 1_000_000).toFixed(2)
-                        : "0.00"} Mbit/s
-                </p>
-
-                <p>
-                    ↑ {speed.netout != null
-                        ? (speed.netout * 8 / 1_000_000).toFixed(2)
-                        : "0.00"} Mbit/s
-                </p>
-            </div>
-
-            <div className="h-64 w-full rounded-lg border p-4">
-                <svg
-                    viewBox="0 0 800 250"
-                    className="h-full w-full"
-                    preserveAspectRatio="none"
-                >
-                    {/* Download */}
-                    <polyline
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        points={speedHistory
-                            .map((point, index) => {
-                                const max = Math.max(
-                                    ...speedHistory.map((p) =>
-                                        Math.max(p.netin, p.netout)
-                                    ),
-                                    1
-                                )
-
-                                const x =
-                                    (index / Math.max(speedHistory.length - 1, 1)) * 800
-
-                                const y = 230 - (point.netin / max) * 210
-
-                                return `${x},${y}`
-                            })
-                            .join(" ")}
-                    />
-
-                    {/* Upload */}
-                    <polyline
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        opacity="0.5"
-                        points={speedHistory
-                            .map((point, index) => {
-                                const max = Math.max(
-                                    ...speedHistory.map((p) =>
-                                        Math.max(p.netin, p.netout)
-                                    ),
-                                    1
-                                )
-
-                                const x =
-                                    (index / Math.max(speedHistory.length - 1, 1)) * 800
-
-                                const y = 230 - (point.netout / max) * 210
-
-                                return `${x},${y}`
-                            })
-                            .join(" ")}
-                    />
-                </svg>
-            </div>
+        <div className="overflow-hidden rounded-lg border">
+            <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                    <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                        <th className="px-4 py-3 font-medium">Name</th>
+                        <th className="px-4 py-3 font-medium">IP</th>
+                        <th className="px-4 py-3 font-medium">Comment</th>
+                        <th className="px-4 py-3 font-medium">Status</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y">
+                    {[...netInfo]
+                        .sort((a, b) => b.iface.localeCompare(a.iface, undefined, { numeric: true }))
+                        .map((nic) => (
+                            <tr key={nic.iface} className="transition-colors">
+                                <td className="px-4 py-3 font-medium">{nic.iface}</td>
+                                <td className="px-4 py-3 font-mono text-muted-foreground">
+                                    {nic.cidr ?? "–"}
+                                </td>
+                                <td className="px-4 py-3 text-muted-foreground">
+                                    {nic.comments?.trim() || "–"}
+                                </td>
+                                <td className="px-4 py-3">
+                                    <span
+                                        className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${nic.active
+                                                ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                                                : "bg-red-500/10 text-red-600 dark:text-red-400"
+                                            }`}
+                                    >
+                                        <span
+                                            className={`h-1.5 w-1.5 rounded-full ${nic.active ? "bg-green-500" : "bg-red-500"
+                                                }`}
+                                        />
+                                        {nic.active ? "up" : "down"}
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                </tbody>
+            </table>
         </div>
     )
 }
