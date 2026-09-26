@@ -270,6 +270,14 @@ export default function Home() {
                     {networkInfo.find((network) => network.iface === "vmbr0")?.address}
                   </td>
                 </tr>
+                <tr>
+                  <td className="py-2 pr-8 text-muted-foreground">
+
+                  </td>
+                  <td>
+                    
+                  </td>
+                </tr>
               </table>
             </div>
 
