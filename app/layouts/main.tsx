@@ -1,91 +1,108 @@
-import { useState } from "react"
-import { NavLink, Outlet } from "react-router"
-import { LayoutDashboard, Menu, Server, X } from "lucide-react"
+import { NavLink, Outlet, useLocation } from "react-router"
+import { LayoutDashboard, Server } from "lucide-react"
 
-import { Button } from "~/components/ui/button"
-import { cn } from "~/lib/utils"
+import type { Route } from "./+types/main"
+import { Separator } from "~/components/ui/separator"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+  useSidebar,
+} from "~/components/ui/sidebar"
 
 const navItems = [{ to: "/", label: "Dashboard", icon: LayoutDashboard }]
 
-export default function MainLayout() {
-  const [open, setOpen] = useState(false)
+// Liest den vom SidebarProvider gesetzten Cookie, damit der
+// eingeklappte Zustand schon beim Server-Rendering stimmt
+export function loader({ request }: Route.LoaderArgs) {
+  const cookie = request.headers.get("Cookie") ?? ""
+  const match = cookie.match(/(?:^|;\s*)sidebar_state=(true|false)/)
+  return { sidebarOpen: match ? match[1] === "true" : true }
+}
+
+function AppSidebar() {
+  const { pathname } = useLocation()
+  const { isMobile, setOpenMobile } = useSidebar()
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
-      {/* Mobile-Overlay */}
-      {open && (
-        <div
-          className="fixed inset-0 z-20 bg-black/40 md:hidden"
-          onClick={() => setOpen(false)}
-        />
-      )}
+    <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" render={<NavLink to="/" />}>
+              <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+                <Server className="size-4" />
+              </div>
+              <span className="font-semibold">Homelab</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
 
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r bg-sidebar text-sidebar-foreground transition-transform md:sticky md:top-0 md:h-screen md:translate-x-0",
-          open ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
-          <NavLink to="/" className="flex items-center gap-2 font-semibold">
-            <Server className="size-5" />
-            Homelab
-          </NavLink>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setOpen(false)}
-            aria-label="Sidebar schließen"
-          >
-            <X />
-          </Button>
-        </div>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map((item) => (
+                <SidebarMenuItem key={item.to}>
+                  <SidebarMenuButton
+                    isActive={pathname === item.to}
+                    tooltip={item.label}
+                    render={
+                      <NavLink
+                        to={item.to}
+                        end
+                        onClick={() => isMobile && setOpenMobile(false)}
+                      />
+                    }
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
 
-        <nav className="flex flex-1 flex-col gap-1 p-2">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end
-              onClick={() => setOpen(false)}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
-                  isActive
-                    ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                )
-              }
-            >
-              <item.icon className="size-4" />
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="border-t border-sidebar-border p-4 text-xs text-muted-foreground">
+      <SidebarFooter>
+        <p className="px-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
           © {new Date().getFullYear()} Homelab
-        </div>
-      </aside>
+        </p>
+      </SidebarFooter>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur md:hidden">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setOpen(true)}
-            aria-label="Sidebar öffnen"
-          >
-            <Menu />
-          </Button>
+      <SidebarRail />
+    </Sidebar>
+  )
+}
+
+export default function MainLayout({ loaderData }: Route.ComponentProps) {
+  return (
+    <SidebarProvider defaultOpen={loaderData.sidebarOpen}>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur">
+          <SidebarTrigger className="-ml-1" />
           <span className="font-semibold">Homelab</span>
         </header>
 
-        <main className="flex-1 p-4 md:p-6">
+        <div className="flex-1 p-4 md:p-6">
           <Outlet />
-        </main>
-      </div>
-    </div>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

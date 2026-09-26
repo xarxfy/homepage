@@ -30,12 +30,12 @@ export default function Home() {
   const [open, setOpen] = useState(false)
   const [health, setHealth] = useState<any>()
   const healthToastShown = useRef(false)
+  const [networkInfo, setNetworkInfo] = useState<any[]>([])
 
   const uptime = nodeInfo.uptime
 
   const days = Math.floor(uptime / 86400)
   const hours = Math.floor((uptime % 86400) / 3600)
-  const minutes = Math.floor((uptime % 3600) / 60)
 
   const bootTime = new Date(Date.now() - nodeInfo.uptime * 1000)
 
@@ -163,6 +163,19 @@ export default function Home() {
       return `${days}d ${hours}h ${minutes}m`
     }
 
+    async function getNetworkInfo(){
+      const res = await fetch("/api/v1/proxmox/nodes/pve/network")
+      try{
+        if(!res.ok){
+          throw new Error(`HTTP. ${res.status}`)
+        }
+        const data = await res.json()
+        setNetworkInfo(data)
+      } catch(error){
+        console.error(error)
+      }
+    }
+
     async function updateData() {
       const healthy = await healthCheck()
 
@@ -176,6 +189,7 @@ export default function Home() {
         getContainers(),
         getNodeInfo(),
         formatUptime(uptime),
+        getNetworkInfo(),
       ])
     }
 
@@ -241,9 +255,21 @@ export default function Home() {
                   </tr>
                   <tr>
                     <td className="py-2 pr-8 text-muted-foreground">Uptime:</td>
-                    <td className="py-2">{days}d {hours}h {minutes}m ({bootTime.toLocaleString("de-DE")})</td>
+                    <td className="py-2">{days}d {hours}h ({bootTime.toLocaleString("de-DE")})</td>
                   </tr>
                 </tbody>
+              </table>
+            </div>
+            <div>
+              <table className="w-full">
+                <tr>
+                  <td className="py-2 pr-8 text-muted-foreground">
+                    IP-Address:                    
+                  </td>
+                  <td>
+                    {networkInfo.find((network) => network.iface === "vmbr0")?.address}
+                  </td>
+                </tr>
               </table>
             </div>
 
