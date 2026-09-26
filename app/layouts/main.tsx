@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from "react-router"
-import { LayoutDashboard, Server } from "lucide-react"
+import { LayoutDashboard, Network, Server } from "lucide-react"
 
 import type { Route } from "./+types/main"
 import { Separator } from "~/components/ui/separator"
@@ -21,7 +21,11 @@ import {
   useSidebar,
 } from "~/components/ui/sidebar"
 
-const navItems = [{ to: "/", label: "Dashboard", icon: LayoutDashboard }]
+const navItems = [
+  { to: "/", label: "Overview", icon: LayoutDashboard },
+  { to: "/network", label: "Network", icon: Network}
+
+]
 
 // Liest den vom SidebarProvider gesetzten Cookie, damit der
 // eingeklappte Zustand schon beim Server-Rendering stimmt

@@ -12,7 +12,6 @@ import {
 import { Progress, ProgressLabel, ProgressValue } from "~/components/ui/progress"
 import {
   Collapsible,
-  CollapsibleContent,
   CollapsibleTrigger,
 } from "~/components/ui/collapsible"
 import { Button } from "~/components/ui/button"
@@ -28,6 +27,7 @@ export default function Home() {
   const [runningContainers, setRunningContainers] = useState<any>()
   const [runningVms, setRunningVms] = useState<any>()
   const [open, setOpen] = useState(false)
+  const [vmsOpen, setVmsOpen] = useState(false)
   const [health, setHealth] = useState<any>()
   const healthToastShown = useRef(false)
   const [networkInfo, setNetworkInfo] = useState<any[]>([])
@@ -163,15 +163,15 @@ export default function Home() {
       return `${days}d ${hours}h ${minutes}m`
     }
 
-    async function getNetworkInfo(){
+    async function getNetworkInfo() {
       const res = await fetch("/api/v1/proxmox/nodes/pve/network")
-      try{
-        if(!res.ok){
+      try {
+        if (!res.ok) {
           throw new Error(`HTTP. ${res.status}`)
         }
         const data = await res.json()
         setNetworkInfo(data)
-      } catch(error){
+      } catch (error) {
         console.error(error)
       }
     }
@@ -250,7 +250,7 @@ export default function Home() {
                       CPU Model:
                     </td>
                     <td className="py-2">
-                      {nodeInfo["cpuinfo"]?.model} ({nodeInfo["cpuinfo"].cpus} CPUs)
+                      {nodeInfo["cpuinfo"]?.model} ({nodeInfo["cpuinfo"]?.cpus} CPUs)
                     </td>
                   </tr>
                   <tr>
@@ -264,10 +264,18 @@ export default function Home() {
               <table className="w-full">
                 <tr>
                   <td className="py-2 pr-8 text-muted-foreground">
-                    IP-Address:                    
+                    IP-Address:
                   </td>
                   <td>
-                    {networkInfo.find((network) => network.iface === "vmbr0")?.address}
+                    {networkInfo.find((network) => network.iface === "vmbr0")?.cidr}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-8 text-muted-foreground">
+                    Interface:
+                  </td>
+                  <td>
+                    {networkInfo.find((network) => network.iface === "vmbr0")?.iface}
                   </td>
                 </tr>
                 <tr>
@@ -275,7 +283,7 @@ export default function Home() {
 
                   </td>
                   <td>
-                    
+
                   </td>
                 </tr>
               </table>
@@ -284,32 +292,46 @@ export default function Home() {
           </CardContent>
         </Card>
       ))}
+
+
+      <Collapsible open={vmsOpen} onOpenChange={setVmsOpen}>
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <h2 className="text-lg">Vms</h2>
+
+          {vms.length > 5 && (
+            <CollapsibleTrigger>
+              <Button variant="outline">
+                {vmsOpen ? "Weniger anzeigen" : `Alle ${vms.length} anzeigen`}
+              </Button>
+            </CollapsibleTrigger>
+          )}
         </CardHeader>
         <CardContent>
-          <div className="flex gap-5">
-            {vms
-              .sort((a, b) => a.vmid - b.vmid)
-              .map((vm) => (
-                <Card key={vm.node} className="w-full">
-                  <CardHeader>
-                    <h2>{vm.name}</h2>
-                  </CardHeader>
-                  <CardContent>
-
-                    <p>CPU: {vm.cpu.toFixed(2)}</p>
-                    <p>RAM: {(vm.mem / 1024 / 1024 / 1024).toFixed(2)} GB</p>
-                    {vm.status == "running" ? <Badge className="bg-green-400 text-black p-1">Running</Badge> : <Badge className="bg-red-400 text-black p-1">Stopped</Badge>}
-                  </CardContent>
-                </Card>
-              ))
-
-            }
-          </div>
+          <table className="w-full">
+            <tbody>
+              {vms
+                .sort((a, b) => a.vmid - b.vmid)
+                .slice(0, vmsOpen ? vms.length : 5)
+                .map((vm) => (
+                  <tr key={vm.vmid} className="border-b last:border-0">
+                    <td className="py-2 pr-8">
+                      <p>{vm.vmid} {vm.name}</p>
+                      <p className="text-muted-foreground">
+                        CPU: {vm.cpu.toFixed(2)} · RAM: {(vm.mem / 1024 / 1024 / 1024).toFixed(2)} GB
+                      </p>
+                    </td>
+                    <td className="py-2 text-right align-middle">
+                      {vm.status == "running" ? <Badge className="bg-green-400 text-black p-1">Running</Badge> : <Badge className="bg-red-400 text-black p-1">Stopped</Badge>}
+                    </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
         </CardContent>
       </Card>
+      </Collapsible>
       <Collapsible open={open} onOpenChange={setOpen}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -323,75 +345,26 @@ export default function Home() {
           </CardHeader>
 
           <CardContent>
-            <div className="grid grid-cols-5 gap-5">
-              {containers
-                .sort((a, b) => a.vmid - b.vmid)
-                .slice(0, 5)
-                .map((container) => (
-                  <Card key={container.vmid} className="w-full">
-                    <CardHeader>
-                      <h2>{container.name}</h2>
-                    </CardHeader>
-
-                    <CardContent>
-                      <p>
-                        CPU: {container.cpu.toFixed(2)}%
-                      </p>
-
-                      <p>
-                        RAM:{" "}
-                        {(container.mem / 1024 / 1024 / 1024).toFixed(2)} GB
-                      </p>
-
-                      {container.status === "running" ? (
-                        <Badge className="bg-green-400 text-black p-1">
-                          Running
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-red-400 text-black p-1">
-                          Stopped
-                        </Badge>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
-
-            <CollapsibleContent>
-              <div className="grid grid-cols-5 gap-5 mt-5">
+            <table className="w-full">
+              <tbody>
                 {containers
-                  .slice(5)
                   .sort((a, b) => a.vmid - b.vmid)
+                  .slice(0, open ? containers.length : 5)
                   .map((container) => (
-                    <Card key={container.vmid} className="w-full">
-                      <CardHeader>
-                        <h2>LXC Name: {container.name}</h2>
-                      </CardHeader>
-
-                      <CardContent>
-                        <p>
-                          CPU: {container.cpu.toFixed(2)}%
+                    <tr key={container.vmid} className="border-b last:border-0">
+                      <td className="py-2 pr-8">
+                        <p>{container.vmid} {container.name}</p>
+                        <p className="text-muted-foreground">
+                          CPU: {container.cpu.toFixed(2)}% · RAM: {(container.mem / 1024 / 1024 / 1024).toFixed(2)} GB
                         </p>
-
-                        <p>
-                          RAM:{" "}
-                          {(container.mem / 1024 / 1024 / 1024).toFixed(2)} GB
-                        </p>
-
-                        {container.status === "running" ? (
-                          <Badge className="bg-green-400 text-black p-1">
-                            Running
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-red-400 text-black p-1">
-                            Stopped
-                          </Badge>
-                        )}
-                      </CardContent>
-                    </Card>
+                      </td>
+                      <td className="py-2 text-right align-middle">
+                        {container.status === "running" ? <Badge className="bg-green-400 text-black p-1">Running</Badge> : <Badge className="bg-red-400 text-black p-1">Stopped</Badge>}
+                      </td>
+                    </tr>
                   ))}
-              </div>
-            </CollapsibleContent>
+              </tbody>
+            </table>
           </CardContent>
         </Card>
       </Collapsible>
