@@ -18,6 +18,12 @@ export default function Network() {
     const [lookupResult, setLookupResult] = useState<any>(null)
     const [lookupError, setLookupError] = useState<string | null>(null)
     const [lookupLoading, setLookupLoading] = useState(false)
+    const [checkIp, setCheckIp] = useState("")
+    const [checkPort, setCheckPort] = useState("")
+    const [checkResult, setCheckResult] = useState<any>(null)
+    const [checkError, setCheckError] = useState<string | null>(null)
+    const [checkLoading, setCheckLoading] = useState(false)
+    const [networkInfo, setNetworkInfo] = useState<any[]>([])
 
     async function runLookup(e: React.FormEvent) {
         e.preventDefault()
@@ -42,6 +48,29 @@ export default function Network() {
             setLookupError((error as Error).message)
         } finally {
             setLookupLoading(false)
+        }
+    }
+
+    async function runPortCheck(e: React.FormEvent) {
+        e.preventDefault()
+        if (!checkIp.trim()) return
+
+        setCheckLoading(true)
+        setCheckError(null)
+        setCheckResult(null)
+
+        try {
+            const params = new URLSearchParams({ ip: checkIp.trim(), port: checkPort.trim() })
+            const res = await fetch(`/api/v1/tools/network/portcheck?host=${checkIp}&port=${checkPort}`)
+            const data = await res.json()
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}`)
+            }
+            setCheckResult(data)
+        } catch (error) {
+            setCheckError((error as Error).message)
+        } finally {
+            setCheckLoading(false)
         }
     }
 
@@ -114,6 +143,19 @@ export default function Network() {
             }
         }
 
+        async function getNetworkInfo() {
+            const res = await fetch("/api/v1/proxmox/nodes/pve/network")
+            try {
+                if (!res.ok) {
+                    throw new Error(`HTTP. ${res.status}`)
+                }
+                const data = await res.json()
+                setNetworkInfo(data)
+            } catch (error) {
+                console.error(error)
+            }
+        }
+
         async function updateData() {
             const healthy = await healthCheck()
 
@@ -122,7 +164,8 @@ export default function Network() {
             }
 
             await Promise.all([
-                getNetInfo()
+                getNetInfo(),
+                getNetworkInfo(),
             ])
         }
 
@@ -192,6 +235,10 @@ export default function Network() {
                                 <td className="py-2">{dnsInfo?.dns1 ?? "–"}</td>
                             </tr>
                             <tr>
+                                <td className="py-2 pr-8 text-muted-foreground">Gateway</td>
+                                <td className="py-2">{networkInfo.find((network) => network.iface === "vmbr0")?.gateway}</td>
+                            </tr>
+                            <tr>
                                 <td className="py-2 pr-8 text-muted-foreground">Search Domain</td>
                                 <td className="py-2">{dnsInfo?.search ?? "–"}</td>
                             </tr>
@@ -200,7 +247,7 @@ export default function Network() {
 
                     <form onSubmit={runLookup} className="flex gap-2">
                         <Input
-                            placeholder="Hostname oder IP, z.B. google.com"
+                            placeholder="Hostname or IP, ex. google.com"
                             value={lookupName}
                             onChange={(e) => setLookupName(e.target.value)}
                         />
@@ -240,6 +287,48 @@ export default function Network() {
                                 </table>
                             )}
                         </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <h2 className="text-lg">Port Check</h2>
+                </CardHeader>
+                <CardContent>
+                    <form onSubmit={runPortCheck} className="flex gap-2 mb-2">
+                        <Input
+                            placeholder="IP, ex. 10.0.0.100"
+                            value={checkIp}
+                            onChange={(e) => setCheckIp(e.target.value)}
+                        />
+                        <Input
+                            placeholder="Port, ex. 443"
+                            value={checkPort}
+                            onChange={(e) => setCheckPort(e.target.value)}
+                        />
+                        <Button type="submit" disabled={checkLoading}>
+                            {checkLoading ? "Suche..." : "Check port"}
+                        </Button>
+                    </form>
+                    {checkError && <p className="text-red-400">{checkError}</p>}
+                    {checkResult && (
+                        <table className="w-full">
+                            <tr className="border-b text-left text-muted-foreground">
+                                <th>IP</th>
+                                <th>Port</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                            </tr>
+                            <tbody>
+                                <tr>
+                                    <td className="py-3 pr-8">{checkResult.host}</td>
+                                    <td className="py-3 pr-8">{checkResult.port}</td>
+                                    <td className="py-3 pr-8">{checkResult.status}</td>
+                                    <td className="py-3 pr-8">{checkResult.ms}</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     )}
                 </CardContent>
             </Card>

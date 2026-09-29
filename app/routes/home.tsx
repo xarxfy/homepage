@@ -212,46 +212,46 @@ export default function Home() {
   }, [])
 
   async function vmAction(vmid: number, action: "start" | "shutdown" | "stop" | "reboot") {
-      if (action === "stop" && !confirm(`Stop VM ${vmid}`)) {
-        return
+    if (action === "stop" && !confirm(`Stop VM ${vmid}`)) {
+      return
+    }
+    setPendingVm(vmid)
+    try {
+      const res = await fetch(`/api/v1/proxmox/nodes/pve/vms/${vmid}/${action}`, {
+        method: "POST",
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => null)
+        throw new Error(err?.detail ?? `HTTP ${res.status}`)
       }
-      setPendingVm(vmid)
-      try {
-        const res = await fetch(`/api/v1/proxmox/nodes/pve/vms/${vmid}/${action}`, {
-          method: "POST",
-        })
-        if (!res.ok) {
-          const err = await res.json().catch(() => null)
-          throw new Error(err?.detail ?? `HTTP ${res.status}`)
-        }
 
-      } catch (error) {
-        console.error(error)
-      } finally {
-        setPendingVm(null)
-      }
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setPendingVm(null)
+    }
 
   }
 
   async function containerAction(vmid: number, action: "start" | "shutdown" | "stop" | "reboot") {
-      if (action === "stop" && !confirm(`Stop VM ${vmid}`)) {
-        return
+    if (action === "stop" && !confirm(`Stop VM ${vmid}`)) {
+      return
+    }
+    setPendingVm(vmid)
+    try {
+      const res = await fetch(`/api/v1/proxmox/nodes/pve/containers/${vmid}/${action}`, {
+        method: "POST",
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => null)
+        throw new Error(err?.detail ?? `HTTP ${res.status}`)
       }
-      setPendingVm(vmid)
-      try {
-        const res = await fetch(`/api/v1/proxmox/nodes/pve/containers/${vmid}/${action}`, {
-          method: "POST",
-        })
-        if (!res.ok) {
-          const err = await res.json().catch(() => null)
-          throw new Error(err?.detail ?? `HTTP ${res.status}`)
-        }
 
-      } catch (error) {
-        console.error(error)
-      } finally {
-        setPendingVm(null)
-      }
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setPendingVm(null)
+    }
 
   }
 
@@ -265,22 +265,20 @@ export default function Home() {
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-5">
             <div>
-              <Progress value={node.cpu}>
+              <Progress value={(node.cpu * 100)}>
                 <ProgressLabel>CPU Usage</ProgressLabel>
                 <ProgressValue />
-                <p className="text-muted-foreground">{node.cpu.toFixed(2)}</p>
               </Progress>
             </div>
             <div>
 
-              <Progress value={parseInt((node.mem / 1024 / 1024 / 1024).toFixed(2))}>
+              <Progress value={(node.mem / node.maxmem) * 100}>
                 <ProgressLabel>RAM Usage</ProgressLabel>
                 <ProgressValue />
-                <p className="text-muted-foreground">{(node.mem / 1024 / 1024 / 1024).toFixed(2)} GB</p>
+                <p className="text-muted-foreground">{(node.mem / 1024 ** 3).toFixed(1)} / {(node.maxmem / 1024 ** 3).toFixed(1)} GB</p>
               </Progress>
             </div>
-            <p>VMs: {runningVms}</p>
-            <p>LXCs: {runningContainers}</p>
+
 
             <div>
               <table className="w-full">
@@ -328,10 +326,19 @@ export default function Home() {
                 </tr>
                 <tr>
                   <td className="py-2 pr-8 text-muted-foreground">
+                    <p>Running VMs:</p>
 
                   </td>
                   <td>
-
+                    {runningVms}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-8 text-muted-foreground">
+                    <p>Running LXCs: </p>
+                  </td>
+                  <td>
+                    {runningContainers}
                   </td>
                 </tr>
               </table>
@@ -366,7 +373,7 @@ export default function Home() {
                       <td className="py-2 pr-8">
                         <p>{vm.vmid} {vm.name}</p>
                         <p className="text-muted-foreground">
-                          CPU: {vm.cpu.toFixed(2)} · RAM: {(vm.mem / 1024 / 1024 / 1024).toFixed(2)} GB
+                          CPU: {((vm.cpu) * 100).toFixed(2)} % · RAM: {(vm.mem / 1024 ** 3).toFixed(1)} GB
                         </p>
                       </td>
                       <td className="py-2 text-right align-middle">
@@ -435,7 +442,7 @@ export default function Home() {
                       <td className="py-2 pr-8">
                         <p>{container.vmid} {container.name}</p>
                         <p className="text-muted-foreground">
-                          CPU: {container.cpu.toFixed(2)}% · RAM: {(container.mem / 1024 / 1024 / 1024).toFixed(2)} GB
+                          CPU: {((container.cpu) * 100).toFixed(2)} % · RAM: {(container.mem / 1024 ** 3).toFixed(1)} GB
                         </p>
                       </td>
                       <td className="py-2 text-right align-middle">
