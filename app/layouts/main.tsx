@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from "react-router"
-import { LayoutDashboard, Network, Server } from "lucide-react"
+import { KeyRoundIcon, LayoutDashboard, Network, Server } from "lucide-react"
 
 import type { Route } from "./+types/main"
 import { Separator } from "~/components/ui/separator"
@@ -23,7 +23,8 @@ import {
 
 const navItems = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
-  { to: "/network", label: "Network", icon: Network}
+  { to: "/network", label: "Network", icon: Network},
+  { to: "/authentication", label: "Authentication", icon: KeyRoundIcon}
 
 ]
 

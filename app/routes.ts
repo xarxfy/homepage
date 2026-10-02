@@ -5,6 +5,7 @@ export default [
     [
       index("routes/home.tsx"),
       route("network", "routes/network.tsx"),
+      route("authentication", "routes/authentication.tsx"),
     ]
   ),
 ] satisfies RouteConfig
