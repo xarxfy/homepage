@@ -1,8 +1,21 @@
-import { Delete, X } from "lucide-react"
+import { Delete, Plus, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardHeader } from "~/components/ui/card"
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "~/components/ui/dialog"
+import { Field, FieldGroup } from "~/components/ui/field"
+import { Input } from "~/components/ui/input"
+import { Label } from "~/components/ui/label"
 
 export default function Authentication() {
 
@@ -37,7 +50,7 @@ export default function Authentication() {
 
     async function deleteApiKey(userid: string, tokenid: string) {
         try {
-            if(confirm(`Delete API-Token ${tokenid}!${userid}`)){
+            if (confirm(`Delete API-Token ${tokenid}!${userid}`)) {
                 const res = await fetch(`/api/v1/proxmox/access/api-token/delete?userid=${userid}&tokenid=${tokenid}`, {
                     method: "POST",
                 })
@@ -45,6 +58,7 @@ export default function Authentication() {
                     const err = await res.json().catch(() => null)
                     throw new Error(err?.detail ?? `HTTP ${res.status}`)
                 }
+                getApiTokens()
             }
         } catch (error) {
             console.error(error)
@@ -59,6 +73,7 @@ export default function Authentication() {
     return (
 
         <div className="flex flex-col gap-5">
+
             <Card>
                 <CardHeader>
                     <h2 className="text-lg">Users</h2>
@@ -101,8 +116,35 @@ export default function Authentication() {
                 </CardContent>
             </Card>
             <Card>
-                <CardHeader>
+                <CardHeader className="flex justify-between">
                     <h2 className="text-lg">API Tokens</h2>
+                    <Dialog>
+                        <form>
+                            <DialogTrigger render={<Button variant="outline"><Plus /></Button>} />
+                            <DialogContent className="sm:max-w-sm">
+                                <DialogHeader>
+                                    <DialogTitle>Create API Token</DialogTitle>
+                                    <DialogDescription>
+                                        Create a new API Token
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <FieldGroup>
+                                    <Field>
+                                        <Label htmlFor="name-1">Name</Label>
+                                        <Input id="name-1" name="name" defaultValue="Pedro Duarte" />
+                                    </Field>
+                                    <Field>
+                                        <Label htmlFor="username-1">Username</Label>
+                                        <Input id="username-1" name="username" defaultValue="@peduarte" />
+                                    </Field>
+                                </FieldGroup>
+                                <DialogFooter>
+                                    <DialogClose render={<Button variant="outline">Cancel</Button>} />
+                                    <Button type="submit">Save changes</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </form>
+                    </Dialog>
                 </CardHeader>
                 <CardContent>
                     <table className="w-full">
@@ -139,6 +181,6 @@ export default function Authentication() {
                     </table>
                 </CardContent>
             </Card>
-        </div>
+        </div >
     )
 }
